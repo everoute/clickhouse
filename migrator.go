@@ -287,18 +287,6 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 func (m Migrator) ColumnTypes(value interface{}) ([]gorm.ColumnType, error) {
 	columnTypes := make([]gorm.ColumnType, 0)
 	execErr := m.RunWithValue(value, func(stmt *gorm.Statement) (err error) {
-		rows, err := m.DB.Session(&gorm.Session{}).Table(stmt.Table).Limit(1).Rows()
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			err = rows.Close()
-		}()
-
-		var rawColumnTypes []*sql.ColumnType
-		rawColumnTypes, err = rows.ColumnTypes()
-
 		columnTypeSQL := "SELECT name, type, default_expression, comment, is_in_primary_key, character_octet_length, numeric_precision, numeric_precision_radix, numeric_scale, datetime_precision FROM system.columns WHERE database = ? AND table = ?"
 		columns, rowErr := m.DB.Raw(columnTypeSQL, m.CurrentDatabase(), stmt.Table).Rows()
 		if rowErr != nil {
@@ -329,13 +317,6 @@ func (m Migrator) ColumnTypes(value interface{}) ([]gorm.ColumnType, error) {
 
 			if column.DefaultValueValue.Valid {
 				column.DefaultValueValue.String = strings.Trim(column.DefaultValueValue.String, "'")
-			}
-
-			for _, c := range rawColumnTypes {
-				if c.Name() == column.NameValue.String {
-					column.SQLColumnType = c
-					break
-				}
 			}
 
 			columnTypes = append(columnTypes, column)
